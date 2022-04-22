@@ -1,0 +1,138 @@
+<!doctype html>
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/p5.min.js"></script>
+<script>
+
+var HostIP = '192.168.8.114:9137'; //Your RaspberryPi IP address
+
+function setup() { //Initilization
+  tmp = createDiv(' Simulink & Raspberry Pi WebSocket GamePad Example');
+  tmp.style('font-size','32px');
+
+  createDiv('[Raspberry Pi IP Address]:[Port]');
+  Inp = createInput(HostIP);
+  Inp.elt.addEventListener('keypress', myInputEvent);
+  
+  SliderY = createSlider(-1.0, 1.0, 0,0.01);
+  SliderY.elt.style.transform='rotate(270deg)'
+  SliderY.elt.addEventListener('change', ReleaseY);
+  SliderY.size(150,30);
+  SliderY.position(10,300);
+
+  SliderX = createSlider(-1.0, 1.0, 0,0.01);
+  SliderX.elt.addEventListener('change', ReleaseX);
+  SliderX.size(150,30);
+  SliderX.position(150,300);
+  
+  UIButtonA = createButton('A')
+  UIButtonA.mousePressed(PressedA);
+  UIButtonA.mouseReleased(ReleasedA);
+  UIButtonA.position(350, 300);
+  UIButtonA.size(50,50);
+
+  UIButtonB = createButton('B')
+  UIButtonB.mousePressed(PressedA);
+  UIButtonB.mouseReleased(ReleasedA);
+  UIButtonB.position(450, 300);
+  UIButtonB.size(50,50);
+  BtnColor = ['#eeeeee','#888888'];//[On, Off]
+
+  AnalogX = 0;
+  AnalogY = 0;
+  ButtonA = 0;
+  ButtonB = 0;
+
+  Pads=[];
+
+  openWebSocket();  // connect to server:
+
+  SendText = '';//Recieve JSON format Text
+  SendVal = []; //Send Value
+  SignalData = []; //Signal Data
+  
+  canv=createCanvas(400, 400);
+  canv.position(0,300);
+  frameRate(30);
+}
+
+function draw() { //Main Loop
+  background("#FFFFFF");
+
+  Pads = navigator.getGamepads(); 
+  if (Pads[0]){ //Exist GamePad
+    AnalogY =  Pads[0].axes[2];
+    AnalogX = -Pads[0].axes[1];
+    SliderX.value(AnalogY); //Analog Stick L
+    SliderY.value(AnalogX); //Analog Stick R
+    ButtonA = Pads[0].buttons[0].value;
+    ButtonB = Pads[0].buttons[1].value;
+    UIButtonA.value(ButtonA);
+    UIButtonB.value(ButtonB);
+  }
+  UIButtonA.elt.style.backgroundColor=BtnColor[ButtonA];
+  UIButtonB.elt.style.backgroundColor=BtnColor[ButtonB];
+  
+  SignalData[0] = { "DataType": "double", "Value": [AnalogX, AnalogY] };
+  SignalData[1] = { "DataType": "double" ,"Value": [ButtonA, ButtonB] };
+  SendText = JSON.stringify({ "BlockLabel": "", "Signal": SignalData });
+  sendMessage(SendText);
+}
+
+function openWebSocket() {
+  socket = new WebSocket('ws://' + HostIP);
+  socket.onmessage = readMessage;
+}
+
+function readMessage(event) {
+  ReceieveText = event.data;
+  rdata = JSON.parse(ReceieveText);
+  RecieveVal = rdata.Signal[0].Value[0];
+}
+
+function sendMessage(s){
+  if(socket.readyState==1){
+    socket.send(s);
+  }else if(socket.readyState==3){
+    openWebSocket();//Re open
+  }
+}
+
+function myInputEvent(e) {// Change IP Address
+  if (e.keyCode === 13) { // Press Enter
+    HostIP=Inp.value();
+    openWebSocket();
+  }
+}
+
+function ReleaseX(){
+  SliderX.value(0);
+}
+
+function ReleaseY(){
+  SliderY.value(0);
+}
+
+function PressedA(){
+  ButtonA = 1;
+}
+
+function ReleasedA(){
+  ButtonA = 0;
+}
+
+function PressedB(){
+  ButtonA = 1;
+}
+
+function ReleasedB(){
+  ButtonA = 0;
+}
+
+
+</script>
+</head>
+<body>
+</body>
+</html>
+
